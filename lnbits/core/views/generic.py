@@ -34,6 +34,10 @@ async def favicon():
         path.join(core_app.root_path, "static"), "favicon.ico"
     )
 
+@core_app.route("/")
+async def home():
+    return redirect("http://bitcoind.me")
+
 
 @core_app.route("/hsvdonationwallets")
 async def home():

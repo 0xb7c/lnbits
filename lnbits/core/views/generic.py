@@ -14,7 +14,7 @@ from quart import (
 
 from lnbits.core import core_app, db
 from lnbits.decorators import check_user_exists, validate_uuids
-from lnbits.settings import LNBITS_ALLOWED_USERS, SERVICE_FEE, LNBITS_SITE_TITLE
+from lnbits.settings import LNBITS_ALLOWED_USERS, SERVICE_FEE, LNBITS_SITE_TITLE, BITCOINDME_MODE
 
 from ..crud import (
     create_account,
@@ -35,8 +35,11 @@ async def favicon():
     )
 
 
-@core_app.route("/")
+@core_app.route("/hsvdonationwallets")
 async def home():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     return await render_template(
         "core/index.html", lnurl=request.args.get("lightning", None)
     )
@@ -46,6 +49,9 @@ async def home():
 @validate_uuids(["usr"], required=True)
 @check_user_exists()
 async def extensions():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     extension_to_enable = request.args.get("enable", type=str)
     extension_to_disable = request.args.get("disable", type=str)
 
@@ -69,6 +75,9 @@ async def extensions():
 @core_app.route("/wallet")
 @validate_uuids(["usr", "wal"])
 async def wallet():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     user_id = request.args.get("usr", type=str)
     wallet_id = request.args.get("wal", type=str)
     wallet_name = request.args.get("nme", type=str)
@@ -107,10 +116,53 @@ async def wallet():
         "core/wallet.html", user=user, wallet=wallet, service_fee=service_fee
     )
 
+@core_app.route("/walletlite")
+@validate_uuids(["usr", "wal"])
+async def walletlite():
+    user_id = request.args.get("usr", type=str)
+    wallet_id = request.args.get("wal", type=str)
+    wallet_name = request.args.get("nme", type=str)
+    service_fee = int(SERVICE_FEE) if int(SERVICE_FEE) == SERVICE_FEE else SERVICE_FEE
+
+    # just wallet_name: create a new user, then create a new wallet for user with wallet_name
+    # just user_id: return the first user wallet or create one if none found (with default wallet_name)
+    # user_id and wallet_name: create a new wallet for user with wallet_name
+    # user_id and wallet_id: return that wallet if user is the owner
+    # nothing: create everything
+
+    if not user_id:
+        user = await get_user((await create_account()).id)
+    else:
+        user = await get_user(user_id)
+        if not user:
+            abort(HTTPStatus.NOT_FOUND, "User does not exist.")
+            return
+
+        if LNBITS_ALLOWED_USERS and user_id not in LNBITS_ALLOWED_USERS:
+            abort(HTTPStatus.UNAUTHORIZED, "User not authorized.")
+
+    if not wallet_id:
+        if user.wallets and not wallet_name:
+            wallet = user.wallets[0]
+        else:
+            wallet = await create_wallet(user_id=user.id, wallet_name=wallet_name)
+
+        return redirect(url_for("core.wallet", usr=user.id, wal=wallet.id))
+
+    wallet = user.get_wallet(wallet_id)
+    if not wallet:
+        abort(HTTPStatus.FORBIDDEN, "Not your wallet.")
+
+    return await render_template(
+        "core/walletlite.html", user=user, wallet=wallet, service_fee=service_fee
+    )
 
 @core_app.route("/withdraw")
 @validate_uuids(["usr", "wal"], required=True)
 async def lnurl_full_withdraw():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+    
     user = await get_user(request.args.get("usr"))
     if not user:
         return jsonify({"status": "ERROR", "reason": "User does not exist."})
@@ -142,6 +194,9 @@ async def lnurl_full_withdraw():
 @core_app.route("/withdraw/cb")
 @validate_uuids(["usr", "wal"], required=True)
 async def lnurl_full_withdraw_callback():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     user = await get_user(request.args.get("usr"))
     if not user:
         return jsonify({"status": "ERROR", "reason": "User does not exist."})
@@ -171,6 +226,9 @@ async def lnurl_full_withdraw_callback():
 @validate_uuids(["usr", "wal"], required=True)
 @check_user_exists()
 async def deletewallet():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     wallet_id = request.args.get("wal", type=str)
     user_wallet_ids = g.user.wallet_ids
 
@@ -189,6 +247,9 @@ async def deletewallet():
 @core_app.route("/withdraw/notify/<service>")
 @validate_uuids(["wal"], required=True)
 async def lnurl_balance_notify(service: str):
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     bc = await get_balance_check(request.args.get("wal"), service)
     if bc:
         redeem_lnurl_withdraw(bc.wallet, bc.url)
@@ -196,6 +257,9 @@ async def lnurl_balance_notify(service: str):
 
 @core_app.route("/lnurlwallet")
 async def lnurlwallet():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     async with db.connect() as conn:
         account = await create_account(conn=conn)
         user = await get_user(account.id, conn=conn)
@@ -215,6 +279,9 @@ async def lnurlwallet():
 
 @core_app.route("/manifest/<usr>.webmanifest")
 async def manifest(usr: str):
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")    
+
     user = await get_user(usr)
     if not user:
         return "", HTTPStatus.NOT_FOUND

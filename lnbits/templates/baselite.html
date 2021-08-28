@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    {% for url in g.VENDORED_CSS %}
+    <link rel="stylesheet" type="text/css" href="{{ url }}" />
+    {% endfor %}
+    <!---->
+    <link rel="stylesheet" type="text/css" href="/static/css/base.css" />
+
+    {% block styles %}{% endblock %}
+    <title>{% block title %}{{ SITE_TITLE }}{% endblock %}</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    {% block head_scripts %}{% endblock %}
+  </head>
+
+  <body data-theme="classic">
+    <q-layout id="vue" view="hHh lpR lfr" v-cloak>
+      <q-header bordered class="bg-marginal-bg">
+        <q-toolbar>
+
+          <q-toolbar-title>
+            <span flat no-caps dense size="lg" type="a" href="/">
+              {% block toolbar_title %} {% if SITE_TITLE != 'LNbits' %} {{
+              SITE_TITLE }} {% else %} <strong>LN</strong>bits {% endif %} {%
+              endblock %}</span
+            >
+          </q-toolbar-title>
+
+          <q-btn-dropdown
+            v-if="g.allowedThemes && g.allowedThemes.length > 1"
+            dense
+            flat
+            round
+            size="sm"
+            icon="dashboard_customize"
+            class="q-pl-md"
+          >
+            <div class="row no-wrap q-pa-md">
+              <q-btn
+                v-if="g.allowedThemes.includes('classic')"
+                dense
+                flat
+                @click="changeColor('classic')"
+                icon="format_color_fill"
+                color="deep-purple"
+                size="md"
+                ><q-tooltip>classic</q-tooltip> </q-btn
+              ><q-btn
+                v-if="g.allowedThemes.includes('mint')"
+                dense
+                flat
+                @click="changeColor('mint')"
+                icon="format_color_fill"
+                color="green"
+                size="md"
+                ><q-tooltip>mint</q-tooltip> </q-btn
+              ><q-btn
+                v-if="g.allowedThemes.includes('autumn')"
+                dense
+                flat
+                @click="changeColor('autumn')"
+                icon="format_color_fill"
+                color="brown"
+                size="md"
+                ><q-tooltip>autumn</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="g.allowedThemes.includes('monochrome')"
+                dense
+                flat
+                @click="changeColor('monochrome')"
+                icon="format_color_fill"
+                color="grey"
+                size="md"
+                ><q-tooltip>monochrome</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="g.allowedThemes.includes('salvador')"
+                dense
+                flat
+                @click="changeColor('salvador')"
+                icon="format_color_fill"
+                color="blue-10"
+                size="md"
+                ><q-tooltip>elSalvador</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="g.allowedThemes.includes('flamingo')"
+                dense
+                flat
+                @click="changeColor('flamingo')"
+                icon="format_color_fill"
+                color="pink-3"
+                size="md"
+                ><q-tooltip>flamingo</q-tooltip>
+              </q-btn>
+            </div>
+          </q-btn-dropdown>
+
+          <q-btn
+            dense
+            flat
+            round
+            @click="toggleDarkMode"
+            :icon="($q.dark.isActive) ? 'brightness_3' : 'wb_sunny'"
+            size="sm"
+          >
+            <q-tooltip>Toggle Dark Mode</q-tooltip>
+          </q-btn>
+        </q-toolbar>
+      </q-header>
+
+      {% block drawer %}
+
+      {% endblock %} {% block page_container %}
+      <q-page-container>
+        <q-page class="q-px-md q-py-lg" :class="{'q-px-lg': $q.screen.gt.xs}">
+          {% block page %}{% endblock %}
+        </q-page>
+      </q-page-container>
+      {% endblock %} {% block footer %}
+      <q-footer
+        class="bg-transparent q-px-lg q-py-md"
+        :class="{'text-dark': !$q.dark.isActive}"
+      >
+
+      </q-footer>
+      {% endblock %}
+    </q-layout>
+
+    {% block vue_templates %}{% endblock %}
+    <!---->
+    {% for url in g.VENDORED_JS %}
+    <script src="{{ url }}"></script>
+    {% endfor %}
+    <!---->
+    <script src="/static/js/base.js"></script>
+    <script src="/static/js/components.js"></script>
+    <script type="text/javascript">
+      const themes = {{ LNBITS_THEME_OPTIONS  | tojson }}
+      if(themes && themes.length) {
+        window.allowedThemes = themes.map(str => str.trim())
+      }
+    </script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

@@ -35,7 +35,7 @@ async def favicon():
     )
 
 @core_app.route("/")
-async def home():
+async def root():
     return redirect("http://bitcoind.me")
 
 

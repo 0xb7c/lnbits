@@ -1,7 +1,8 @@
-from quart import g, abort, render_template
+from quart import g, abort, render_template, redirect
 from http import HTTPStatus
 
 from lnbits.decorators import check_user_exists, validate_uuids
+from lnbits.settings import BITCOINDME_MODE
 
 from . import lnurlp_ext
 from .crud import get_pay_link
@@ -11,6 +12,9 @@ from .crud import get_pay_link
 @validate_uuids(["usr"], required=True)
 @check_user_exists()
 async def index():
+    if BITCOINDME_MODE:
+        return redirect("http://bitcoind.me")
+
     return await render_template("lnurlp/index.html", user=g.user)
 
 

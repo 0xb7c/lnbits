@@ -8,13 +8,15 @@ from quart import (
     request,
     redirect,
     render_template,
+    make_response,
     send_from_directory,
     url_for,
 )
 
 from lnbits.core import core_app, db
-from lnbits.decorators import check_user_exists, validate_uuids
-from lnbits.settings import LNBITS_ALLOWED_USERS, SERVICE_FEE, LNBITS_SITE_TITLE, BITCOINDME_MODE
+from lnbits.decorators import check_user_exists, validate_uuids, unsafe_endpoint, protected_endpoint
+from lnbits.settings import LNBITS_ALLOWED_USERS, SERVICE_FEE, LNBITS_SITE_TITLE
+from lnbits.utils.helpers import validate_hashed_password, get_jwt_for_user
 
 from ..crud import (
     create_account,
@@ -40,10 +42,8 @@ async def root():
 
 
 @core_app.route("/hsvdonationwallets")
+@unsafe_endpoint
 async def home():
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-
     return await render_template(
         "core/index.html", lnurl=request.args.get("lightning", None)
     )
@@ -52,10 +52,8 @@ async def home():
 @core_app.route("/extensions")
 @validate_uuids(["usr"], required=True)
 @check_user_exists()
+@unsafe_endpoint
 async def extensions():
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-
     extension_to_enable = request.args.get("enable", type=str)
     extension_to_disable = request.args.get("disable", type=str)
 
@@ -78,10 +76,8 @@ async def extensions():
 
 @core_app.route("/wallet")
 @validate_uuids(["usr", "wal"])
+@unsafe_endpoint
 async def wallet():
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-
     user_id = request.args.get("usr", type=str)
     wallet_id = request.args.get("wal", type=str)
     wallet_name = request.args.get("nme", type=str)
@@ -122,7 +118,8 @@ async def wallet():
 
 @core_app.route("/walletlite")
 @validate_uuids(["usr", "wal"])
-async def walletlite():
+@protected_endpoint()
+async def walletlite(user):
     user_id = request.args.get("usr", type=str)
     wallet_id = request.args.get("wal", type=str)
     wallet_name = request.args.get("nme", type=str)
@@ -163,10 +160,8 @@ async def walletlite():
 
 @core_app.route("/withdraw")
 @validate_uuids(["usr", "wal"], required=True)
+@unsafe_endpoint
 async def lnurl_full_withdraw():
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-    
     user = await get_user(request.args.get("usr"))
     if not user:
         return jsonify({"status": "ERROR", "reason": "User does not exist."})
@@ -197,10 +192,8 @@ async def lnurl_full_withdraw():
 
 @core_app.route("/withdraw/cb")
 @validate_uuids(["usr", "wal"], required=True)
+@unsafe_endpoint
 async def lnurl_full_withdraw_callback():
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-
     user = await get_user(request.args.get("usr"))
     if not user:
         return jsonify({"status": "ERROR", "reason": "User does not exist."})
@@ -229,10 +222,8 @@ async def lnurl_full_withdraw_callback():
 @core_app.route("/deletewallet")
 @validate_uuids(["usr", "wal"], required=True)
 @check_user_exists()
+@unsafe_endpoint
 async def deletewallet():
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-
     wallet_id = request.args.get("wal", type=str)
     user_wallet_ids = g.user.wallet_ids
 
@@ -250,20 +241,16 @@ async def deletewallet():
 
 @core_app.route("/withdraw/notify/<service>")
 @validate_uuids(["wal"], required=True)
+@unsafe_endpoint
 async def lnurl_balance_notify(service: str):
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-
     bc = await get_balance_check(request.args.get("wal"), service)
     if bc:
         redeem_lnurl_withdraw(bc.wallet, bc.url)
 
 
 @core_app.route("/lnurlwallet")
+@unsafe_endpoint
 async def lnurlwallet():
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")
-
     async with db.connect() as conn:
         account = await create_account(conn=conn)
         user = await get_user(account.id, conn=conn)
@@ -282,10 +269,8 @@ async def lnurlwallet():
 
 
 @core_app.route("/manifest/<usr>.webmanifest")
+@unsafe_endpoint
 async def manifest(usr: str):
-    if BITCOINDME_MODE:
-        return redirect("http://bitcoind.me")    
-
     user = await get_user(usr)
     if not user:
         return "", HTTPStatus.NOT_FOUND
@@ -318,3 +303,46 @@ async def manifest(usr: str):
             ],
         }
     )
+
+
+@core_app.route("/auth", methods=["GET", "POST"])
+async def authenticate():
+    if request.method == "POST":
+        data = await request.get_data()
+        form_data = parse_form_data(data.decode("utf-8"))
+
+        username = form_data.get("user", None)
+        password = form_data.get("password", None)
+
+        user = await get_user(username)
+
+        if not user:
+            return await render_template(
+                "core/authenticate.html", error="wrong user/password"
+            )
+        if validate_hashed_password(user.password, password):
+            response = await make_response(await render_template(
+                "core/authenticate.html", lnurl="shit"
+            ))
+            jwt_token = get_jwt_for_user(user)
+            response.set_cookie("Authorization", jwt_token)
+
+            return response
+        return await render_template(
+            "core/authenticate.html", error="wrong user/password"
+        )
+    else:
+        return await render_template(
+            "core/authenticate.html", lnurl="shit"
+        )
+
+
+def parse_form_data(data):
+    result = dict()
+    tokens = data.split("&")
+    print("tokens", tokens)
+    for token in tokens:
+        k, v = token.split("=")
+        result[k] = v
+    
+    return result

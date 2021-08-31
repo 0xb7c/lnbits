@@ -19,7 +19,8 @@ DEBUG = env.bool("QUART_DEBUG", default=False) or ENV == "development"
 HOST = env.str("HOST", default="127.0.0.1")
 PORT = env.int("PORT", default=5000)
 
-BITCOINDME_MODE = env.bool("BITCOINDME_MODE", default=True)
+SAFE_MODE_ENABLED = env.bool("BITCOINDME_MODE", default=True)
+SECRET_KEY = env.str("SECRET_KEY", default="put_some_secret_key_here")
 
 LNBITS_PATH = path.dirname(path.realpath(__file__))
 LNBITS_DATA_FOLDER = env.str(

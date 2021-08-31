@@ -38,7 +38,7 @@ async def get_account(
 
 async def get_user(user_id: str, conn: Optional[Connection] = None) -> Optional[User]:
     user = await (conn or db).fetchone(
-        "SELECT id, email FROM accounts WHERE id = ?", (user_id,)
+        "SELECT id, email, pass FROM accounts WHERE id = ?", (user_id,)
     )
 
     if user:
@@ -55,19 +55,22 @@ async def get_user(user_id: str, conn: Optional[Connection] = None) -> Optional[
             (user_id,),
         )
 
-    return (
-        User(
-            **{
-                **user,
+    if user:
+        user = {**user}
+        password = user.pop('pass', None)
+        return (
+            User(
                 **{
-                    "extensions": [e[0] for e in extensions],
-                    "wallets": [Wallet(**w) for w in wallets],
-                },
-            }
+                    **user,
+                    'password': password,
+                    **{
+                        "extensions": [e[0] for e in extensions],
+                        "wallets": [Wallet(**w) for w in wallets],
+                    },
+                }
+            )
         )
-        if user
-        else None
-    )
+    return (None)
 
 
 async def update_user_extension(

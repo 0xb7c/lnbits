@@ -1,0 +1,32 @@
+{% extends "public.html" %} {% block scripts %}
+<script src="/core/static/js/index.js"></script>
+{% endblock %} {% block page %}
+<div class="row q-col-gutter-md justify-center">
+  <div>
+
+    <q-card>
+      <q-card-section>
+        <div class="q-pa-md" style="max-width: 400px">
+          <form method="post" class="q-gutter-md">
+            <p>{{error}}</p>
+            <input
+              label="User"
+              type="text"
+              name="user"
+            />
+            <input
+              label="Password"
+              type="password"
+              name="password"
+            />
+            <div>
+              <q-btn label="Login" type="submit" color="primary"/>
+            </div>
+          </form>
+        </div>
+      </q-card-section>
+    </q-card>
+  </div>
+
+</div>
+{% endblock %}

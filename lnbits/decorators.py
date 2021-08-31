@@ -1,12 +1,13 @@
 from cerberus import Validator  # type: ignore
-from quart import g, abort, jsonify, request
+from quart import g, abort, jsonify, request, redirect
 from functools import wraps
 from http import HTTPStatus
 from typing import List, Union
 from uuid import UUID
 
 from lnbits.core.crud import get_user, get_wallet_for_key
-from lnbits.settings import LNBITS_ALLOWED_USERS
+from lnbits.settings import LNBITS_ALLOWED_USERS, SAFE_MODE_ENABLED
+from lnbits.utils.helpers import validate_jwt_token
 
 
 def api_check_wallet_key(key_type: str = "invoice", accept_querystring=False):
@@ -101,4 +102,33 @@ def validate_uuids(
 
         return wrapped_view
 
+    return wrap
+
+
+def unsafe_endpoint(view):
+    @wraps(view)
+    async def wrapped_view(**kwargs):
+        if SAFE_MODE_ENABLED:
+            return redirect("http://bitcoind.me")
+        return await view(**kwargs)
+
+    return wrapped_view    
+
+
+def protected_endpoint():
+    def wrap(view):
+        @wraps(view)
+        async def wrapped_view(**kwargs):
+            authentication_header = request.headers.get("Authorization", None)
+            if not authentication_header:
+                return None
+            
+            is_valid, user = validate_jwt_token(authentication_header)
+            if not is_valid:
+                return None
+            
+            return view(**kwargs, user=user)
+        
+        return wrapped_view
+    
     return wrap
